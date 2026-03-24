@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Habit Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --border2: #333;
+    --text: #f0ede8;
+    --muted: #6b6b6b;
+    --muted2: #4a4a4a;
+    --green: #4ade80;
+    --green-dim: #1a3a26;
+    --green-text: #86efac;
+    --red: #f87171;
+    --red-dim: #3a1a1a;
+    --red-text: #fca5a5;
+    --amber: #fbbf24;
+    --amber-dim: #3a2a0a;
+    --amber-text: #fcd34d;
+    --blue: #60a5fa;
+    --blue-dim: #1a2a3a;
+    --blue-text: #93c5fd;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .top-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .top-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+  .metric {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem 1rem;
+  }
+  .metric-label {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .metric-val { font-size: 20px; font-weight: 500; color: var(--text); }
+  .metric-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .col { display: flex; flex-direction: column; gap: 1rem; }
+  .panel {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: .65rem 1rem;
+    border-bottom: 0.5px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-body { padding: .75rem 1rem; }
+  .row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .row:last-child { border-bottom: none; }
+  .row-text { flex: 1; }
+  .row-label {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .row-detail { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .check-btn {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .check-btn.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .check-btn.avoided { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 99px;
+    letter-spacing: .04em;
+  }
+  .badge-warn { background: var(--amber-dim); color: var(--amber-text); }
+  .badge-good { background: var(--green-dim); color: var(--green-text); }
+  .badge-info { background: var(--blue-dim); color: var(--blue-text); }
+  .badge-red  { background: var(--red-dim); color: var(--red-text); }
+  .water-cups { display: flex; gap: 5px; flex-wrap: wrap; margin-top: .5rem; }
+  .cup {
+    width: 30px; height: 30px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all .15s;
+    color: var(--muted);
+  }
+  .cup.filled { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .progress-bg { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+  .prog-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  input[type=number], input[type=text] {
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 0 10px;
+    height: 32px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type=number]:focus, input[type=text]:focus { border-color: var(--muted); }
+  button.add-btn {
+    background: transparent;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--muted);
+    height: 32px;
+    padding: 0 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
+  }
+  button.add-btn:hover { border-color: var(--muted); color: var(--text); }
+  .cal-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .cal-row label { font-size: 12px; color: var(--muted); flex: 1; }
+  .cal-row input { width: 90px; text-align: right; }
+  .week-dots { display: flex; gap: 5px; }
+  .day-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 0.5px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--muted);
+  }
+  .day-dot.complete { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .day-dot.today { border-color: #f0ede8; color: #f0ede8; }
+  .skip-box {
+    background: var(--amber-dim);
+    border: 0.5px solid #5a3a0a;
+    border-radius: var(--radius);
+    padding: .65rem .85rem;
+    margin-top: .75rem;
+  }
+  .skip-box .skip-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--amber-text);
+    margin-bottom: 3px;
+  }
+  .skip-box p { font-size: 11px; color: var(--amber-text); line-height: 1.4; }
+  .reset-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: color .15s;
+  }
+  .reset-btn:hover { color: var(--red); }
+  .avoid-tally {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .avoid-tally-label { font-size: 11px; color: var(--muted); flex: 1; }
+  .avoid-tally-val { font-size: 18px; font-weight: 500; color: var(--green); font-family: 'DM Mono', monospace; }
+  .chart-wrap { position: relative; height: 160px; margin-top: .5rem; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="top-title">Daily habit tracker</div>
+  <div class="top-date" id="date-label"></div>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">Habits done</div>
+    <div class="metric-val" id="m-habits">0/7</div>
+    <div class="metric-sub">today</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Water</div>
+    <div class="metric-val" id="m-water">0/8</div>
+    <div class="metric-sub">glasses</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Supplements</div>
+    <div class="metric-val" id="m-sups">0/5</div>
+    <div class="metric-sub">taken</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Streak</div>
+    <div class="metric-val" id="m-streak">0</div>
+    <div class="metric-sub">days (4+ habits)</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="col">
+
+    <!-- Habits -->
+    <div class="panel">
+      <div class="panel-header">Daily habits <button class="reset-btn" onclick="resetSection('habits')">reset</button></div>
+      <div class="panel-body">
+        <div class="row" id="h0"><div class="row-text"><div class="row-label">Cardio / exercise</div><div class="row-detail">20–30 min — raises calorie deficit</div></div><button class="check-btn" onclick="toggleHabit(0)">✓</button></div>
+        <div class="row" id="h1"><div class="row-text"><div class="row-label">Stretching</div><div class="row-detail">10–15 min — reduces cortisol, improves recovery</div></div><button class="check-btn" onclick="toggleHabit(1)">✓</button></div>
+        <div class="row" id="h2"><div class="row-text"><div class="row-label">No alcohol</div><div class="row-detail">Biggest driver of facial puffiness</div></div><button class="check-btn" onclick="toggleHabit(2)">✓</button></div>
+        <div class="row" id="h3"><div class="row-text"><div class="row-label">No processed food</div><div class="row-detail">Main hidden sodium source</div></div><button class="check-btn" onclick="toggleHabit(3)">✓</button></div>
+        <div class="row" id="h4"><div class="row-text"><div class="row-label">7–9 hrs sleep</div><div class="row-detail">Poor sleep spikes cortisol = puffiness</div></div><button class="check-btn" onclick="toggleHabit(4)">✓</button></div>
+        <div class="row" id="h5"><div class="row-text"><div class="row-label">No added sugar</div><div class="row-detail">Spikes insulin, promotes fat storage</div></div><button class="check-btn" onclick="toggleHabit(5)">✓</button></div>
+        <div class="row" id="h6"><div class="row-text"><div class="row-label">Read for 10 min</div><div class="row-detail">Wind-down habit — supports better sleep</div></div><button class="check-btn" onclick="toggleHabit(6)">✓</button></div>
+      </div>
+    </div>
+
+    <!-- Calorie Tracker -->
+    <div class="panel">
+      <div class="panel-header">Calorie tracking</div>
+      <div class="panel-body">
+        <div class="cal-row"><label>Your TDEE (kcal)</label><input type="number" id="tdee" value="2400" oninput="saveCalories()"></div>
+        <div class="cal-row"><label>Eaten today (kcal)</label><input type="number" id="eaten" value="0" oninput="saveCalories()"></div>
+        <div class="progress-bg"><div class="progress-fill" id="cal-fill" style="width:0%;background:#60a5fa"></div></div>
+        <div class="prog-label"><span id="cal-target">Target: 1900 kcal</span><span id="cal-status" style="color:var(--muted)">—</span></div>
+      </div>
+    </div>
+
+    <!-- Calorie chart -->
+    <div class="panel">
+      <div class="panel-header">Calorie history — last 14 days</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="cal-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Water -->
+    <div class="panel">
+      <div class="panel-header">Water intake <button class="reset-btn" onclick="resetWater()">reset</button></div>
+      <div class="panel-body">
+        <div style="font-size:11px;color:var(--muted)">Tap each glass to log (250 ml each)</div>
+        <div class="water-cups" id="water-cups"></div>
+        <div class="progress-bg"><div class="progress-fill" id="water-fill" style="width:0%;background:#60a5fa"></div></div>
+        <div class="prog-label"><span id="water-label">0 / 2000 ml</span><span id="water-pct">0%</span></div>
+      </div>
+    </div>
+
+    <!-- Streak -->
+    <div class="panel">
+      <div class="panel-header">Weekly streak</div>
+      <div class="panel-body">
+        <div class="week-dots" id="week-dots"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Green = 4+ habits completed. Keep the chain.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col">
+
+    <!-- Supplements -->
+    <div class="panel">
+      <div class="panel-header">Supplements <button class="reset-btn" onclick="resetSection('sups')">reset</button></div>
+      <div class="panel-body">
+        <div class="row" id="s0"><div class="row-text"><div class="row-label">Magnesium glycinate <span class="badge badge-good">sleep</span></div><div class="row-detail">300–400 mg before bed. Lowers cortisol, improves sleep.</div></div><button class="check-btn" onclick="toggleSup(0)">✓</button></div>
+        <div class="row" id="s1"><div class="row-text"><div class="row-label">Vitamin D3 <span class="badge badge-info">UK essential</span></div><div class="row-detail">1000–2000 IU daily. Most UK adults are deficient.</div></div><button class="check-btn" onclick="toggleSup(1)">✓</button></div>
+        <div class="row" id="s2"><div class="row-text"><div class="row-label">Zinc <span class="badge badge-info">hormone</span></div><div class="row-detail">15–25 mg with food. Supports testosterone, reduces cortisol.</div></div><button class="check-btn" onclick="toggleSup(2)">✓</button></div>
+        <div class="row" id="s3"><div class="row-text"><div class="row-label">Electrolytes <span class="badge badge-good">bloat</span></div><div class="row-detail">Nuun tablet, High5 Zero, or electrolyte powder in water.</div></div><button class="check-btn" onclick="toggleSup(3)">✓</button></div>
+        <div class="row" id="s4"><div class="row-text"><div class="row-label">Caffeine <span class="badge badge-good">fat loss</span></div><div class="row-detail">English tea with milk or White Monster pre-workout. Boosts fat oxidation.</div></div><button class="check-btn" onclick="toggleSup(4)">✓</button></div>
+        <div class="skip-box">
+          <div class="skip-title">Skip for now</div>
+          <p>Creatine — causes water retention in muscle. Reintroduce after hitting your goal.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Avoids -->
+    <div class="panel">
+      <div class="panel-header">Things to avoid <button class="reset-btn" onclick="resetSection('avoids')">reset</button></div>
+      <div class="panel-body">
+        <div class="avoid-tally">
+          <div class="avoid-tally-label">Avoided today</div>
+          <div class="avoid-tally-val" id="avoid-tally-val">0 / 8</div>
+        </div>
+        <div class="row" id="a0"><div class="row-text"><div class="row-label">Alcohol <span class="badge badge-red">biggest bloat driver</span></div><div class="row-detail">Even 1–2 drinks shows on your face next morning.</div></div><button class="check-btn" onclick="toggleAvoid(0)">✓</button></div>
+        <div class="row" id="a1"><div class="row-text"><div class="row-label">Processed / packaged food <span class="badge badge-warn">sodium</span></div><div class="row-detail">Ready meals, crisps, instant noodles — hidden salt.</div></div><button class="check-btn" onclick="toggleAvoid(1)">✓</button></div>
+        <div class="row" id="a2"><div class="row-text"><div class="row-label">Added sugar + sugary drinks <span class="badge badge-warn">fat</span></div><div class="row-detail">Includes juices, flavoured drinks, sauces.</div></div><button class="check-btn" onclick="toggleAvoid(2)">✓</button></div>
+        <div class="row" id="a3"><div class="row-text"><div class="row-label">White refined carbs <span class="badge badge-warn">water weight</span></div><div class="row-detail">White bread, pasta, rice — each g glycogen holds ~3g water.</div></div><button class="check-btn" onclick="toggleAvoid(3)">✓</button></div>
+        <div class="row" id="a4"><div class="row-text"><div class="row-label">Carbonated drinks <span class="badge badge-warn">bloat</span></div><div class="row-detail">Gas causes gut bloat. White Monster counts here.</div></div><button class="check-btn" onclick="toggleAvoid(4)">✓</button></div>
+        <div class="row" id="a5"><div class="row-text"><div class="row-label">High-sodium sauces <span class="badge badge-warn">sodium</span></div><div class="row-detail">Soy sauce, ketchup, BBQ — small amounts, huge hit.</div></div><button class="check-btn" onclick="toggleAvoid(5)">✓</button></div>
+        <div class="row" id="a6"><div class="row-text"><div class="row-label">Takeaways <span class="badge badge-warn">sodium + fat</span></div><div class="row-detail">Impossible to control sodium or calories.</div></div><button class="check-btn" onclick="toggleAvoid(6)">✓</button></div>
+        <div class="row" id="a7"><div class="row-text"><div class="row-label">Late eating (after 8pm) <span class="badge badge-warn">cortisol</span></div><div class="row-detail">Disrupts sleep, raises cortisol overnight.</div></div><button class="check-btn" onclick="toggleAvoid(7)">✓</button></div>
+      </div>
+    </div>
+
+    <!-- Weekly bar chart: habits vs avoids -->
+    <div class="panel">
+      <div class="panel-header">Weekly habits vs avoids</div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="weekly-chart"></canvas></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const TODAY = new Date().toISOString().split('T')[0];
+const KEY = 'dht_v3';
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return defaultState();
+    const s = JSON.parse(raw);
+    if (s.date !== TODAY) {
+      const history = s.history || {};
+      if (s.date) {
+        history[s.date] = {
+          habits: s.habits ? s.habits.filter(Boolean).length : 0,
+          avoids: s.avoids ? s.avoids.filter(Boolean).length : 0,
+          eaten: s.eaten || 0,
+          tdee: s.tdee || 2400
+        };
+      }
+      const streakDays = s.streakDays || [];
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+      const yStr = yesterday.toISOString().split('T')[0];
+      if (s.date === yStr && s.habits && s.habits.filter(Boolean).length >= 4 && !streakDays.includes(yStr)) {
+        streakDays.push(yStr);
+      }
+      return { ...defaultState(), tdee: s.tdee || 2400, streakDays, history };
+    }
+    return s;
+  } catch(e) { return defaultState(); }
+}
+
+function defaultState() {
+  return {
+    date: TODAY,
+    habits: [false,false,false,false,false,false,false],
+    water: 0,
+    sups: [false,false,false,false,false],
+    avoids: [false,false,false,false,false,false,false,false],
+    tdee: 2400,
+    eaten: 0,
+    streakDays: [],
+    history: {}
+  };
+}
+
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+let calChart = null;
+let weeklyChart = null;
+
+function toggleHabit(i) {
+  state.habits[i] = !state.habits[i];
+  document.querySelector('#h'+i+' .check-btn').classList.toggle('done', state.habits[i]);
+  save(); updateMetrics();
+}
+
+function toggleSup(i) {
+  state.sups[i] = !state.sups[i];
+  document.querySelector('#s'+i+' .check-btn').classList.toggle('done', state.sups[i]);
+  save(); updateMetrics();
+}
+
+function toggleAvoid(i) {
+  state.avoids[i] = !state.avoids[i];
+  document.querySelector('#a'+i+' .check-btn').classList.toggle('avoided', state.avoids[i]);
+  save(); updateMetrics(); updateAvoidTally();
+}
+
+function updateAvoidTally() {
+  const done = state.avoids.filter(Boolean).length;
+  const el = document.getElementById('avoid-tally-val');
+  el.textContent = done + ' / 8';
+  el.style.color = done >= 6 ? '#4ade80' : done >= 3 ? '#fbbf24' : '#f87171';
+}
+
+function buildWater() {
+  const bar = document.getElementById('water-cups');
+  bar.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const c = document.createElement('div');
+    c.className = 'cup' + (i < state.water ? ' filled' : '');
+    c.textContent = 'ʬ';
+    c.onclick = () => { state.water = i < state.water ? i : i+1; save(); buildWater(); updateMetrics(); };
+    bar.appendChild(c);
+  }
+  const pct = Math.round(state.water/8*100);
+  document.getElementById('water-fill').style.width = pct+'%';
+  document.getElementById('water-label').textContent = (state.water*250)+' / 2000 ml';
+  document.getElementById('water-pct').textContent = pct+'%';
+  document.getElementById('m-water').textContent = state.water+'/8';
+}
+
+function saveCalories() {
+  state.tdee = parseInt(document.getElementById('tdee').value) || 2400;
+  state.eaten = parseInt(document.getElementById('eaten').value) || 0;
+  save(); updateCalories(); buildCalChart();
+}
+
+function updateCalories() {
+  const target = state.tdee - 500;
+  const pct = Math.min(Math.round(state.eaten / target * 100), 100);
+  document.getElementById('cal-fill').style.width = pct + '%';
+  document.getElementById('cal-target').textContent = 'Target: ' + target + ' kcal';
+  const diff = target - state.eaten;
+  const st = document.getElementById('cal-status');
+  if (!state.eaten) { st.textContent = '—'; st.style.color = 'var(--muted)'; }
+  else if (diff >= 0) { st.textContent = diff + ' kcal left'; st.style.color = '#4ade80'; }
+  else { st.textContent = Math.abs(diff) + ' kcal over'; st.style.color = '#f87171'; }
+}
+
+function getLast14Days() {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function getLast7Days() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function shortDate(str) {
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function buildCalChart() {
+  const days = getLast14Days();
+  const history = state.history || {};
+  const target = state.tdee - 500;
+
+  const labels = days.map(d => d === TODAY ? 'Today' : shortDate(d));
+  const eaten = days.map(d => {
+    if (d === TODAY) return state.eaten || 0;
+    return history[d] ? history[d].eaten || 0 : null;
+  });
+  const targets = days.map(() => target);
+
+  if (calChart) calChart.destroy();
+  const ctx = document.getElementById('cal-chart').getContext('2d');
+  calChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Eaten',
+          data: eaten,
+          backgroundColor: days.map(d => {
+            const e = d === TODAY ? state.eaten : (history[d] ? history[d].eaten : 0);
+            const t = d === TODAY ? target : (history[d] ? (history[d].tdee||2400)-500 : target);
+            if (!e) return '#2a2a2a';
+            return e <= t ? 'rgba(74,222,128,0.7)' : 'rgba(248,113,113,0.7)';
+          }),
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+        {
+          label: 'Target',
+          data: targets,
+          type: 'line',
+          borderColor: 'rgba(96,165,250,0.5)',
+          borderWidth: 1,
+          borderDash: [4,4],
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label === 'Target' ? 'Target: '+ctx.parsed.y+' kcal' : 'Eaten: '+(ctx.parsed.y||0)+' kcal'
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b6b', font: { size: 10, family: 'DM Mono' }, maxRotation: 45 }, grid: { color: '#1a1a1a' } },
+        y: { ticks: { color: '#6b6b6b', font: { size: 10 } }, grid: { color: '#1a1a1a' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function buildWeeklyChart() {
+  const days = getLast7Days();
+  const history = state.history || {};
+  const labels = days.map(d => d === TODAY ? 'Today' : new Date(d+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short'}));
+
+  const habitsData = days.map(d => {
+    if (d === TODAY) return state.habits.filter(Boolean).length;
+    return history[d] ? history[d].habits || 0 : 0;
+  });
+  const avoidsData = days.map(d => {
+    if (d === TODAY) return state.avoids.filter(Boolean).length;
+    return history[d] ? history[d].avoids || 0 : 0;
+  });
+
+  if (weeklyChart) weeklyChart.destroy();
+  const ctx = document.getElementById('weekly-chart').getContext('2d');
+  weeklyChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Habits done',
+          data: habitsData,
+          backgroundColor: 'rgba(74,222,128,0.7)',
+          borderRadius: 4,
+          borderSkipped: false,
+        },
+        {
+          label: 'Things avoided',
+          data: avoidsData,
+          backgroundColor: 'rgba(96,165,250,0.6)',
+          borderRadius: 4,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#6b6b6b', font: { size: 10, family: 'DM Mono' }, boxWidth: 10, padding: 12 }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b6b', font: { size: 11, family: 'DM Mono' } }, grid: { color: '#1a1a1a' } },
+        y: {
+          ticks: { color: '#6b6b6b', font: { size: 10 }, stepSize: 1 },
+          grid: { color: '#1a1a1a' },
+          beginAtZero: true,
+          max: 8
+        }
+      }
+    }
+  });
+}
+
+function buildWeek() {
+  const el = document.getElementById('week-dots');
+  el.innerHTML = '';
+  const streakDays = state.streakDays || [];
+  const todayDow = (new Date().getDay()+6)%7;
+  ['M','T','W','T','F','S','S'].forEach((d, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'day-dot';
+    const dateForDot = new Date(); dateForDot.setDate(dateForDot.getDate()-(todayDow-i));
+    const dStr = dateForDot.toISOString().split('T')[0];
+    if (dStr === TODAY && state.habits.filter(Boolean).length >= 4) dot.classList.add('complete');
+    else if (streakDays.includes(dStr)) dot.classList.add('complete');
+    if (i === todayDow) dot.classList.add('today');
+    dot.textContent = d;
+    dot.title = dStr;
+    el.appendChild(dot);
+  });
+}
+
+function updateMetrics() {
+  const hDone = state.habits.filter(Boolean).length;
+  const sDone = state.sups.filter(Boolean).length;
+  document.getElementById('m-habits').textContent = hDone+'/7';
+  document.getElementById('m-sups').textContent = sDone+'/5';
+  const streak = (state.streakDays||[]).length + (hDone >= 4 ? 1 : 0);
+  document.getElementById('m-streak').textContent = streak;
+  buildWeek();
+  buildWeeklyChart();
+}
+
+function resetSection(key) {
+  if (key === 'habits') {
+    state.habits = [false,false,false,false,false,false,false];
+    for (let i=0;i<7;i++) document.querySelector('#h'+i+' .check-btn').classList.remove('done');
+  } else if (key === 'sups') {
+    state.sups = [false,false,false,false,false];
+    for (let i=0;i<5;i++) document.querySelector('#s'+i+' .check-btn').classList.remove('done');
+  } else if (key === 'avoids') {
+    state.avoids = [false,false,false,false,false,false,false,false];
+    for (let i=0;i<8;i++) document.querySelector('#a'+i+' .check-btn').classList.remove('avoided');
+    updateAvoidTally();
+  }
+  save(); updateMetrics();
+}
+
+function resetWater() { state.water = 0; save(); buildWater(); }
+
+function init() {
+  document.getElementById('date-label').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('tdee').value = state.tdee;
+  document.getElementById('eaten').value = state.eaten || 0;
+  state.habits.forEach((v,i) => { if(v) document.querySelector('#h'+i+' .check-btn').classList.add('done'); });
+  state.sups.forEach((v,i) => { if(v) document.querySelector('#s'+i+' .check-btn').classList.add('done'); });
+  state.avoids.forEach((v,i) => { if(v) document.querySelector('#a'+i+' .check-btn').classList.add('avoided'); });
+  buildWater();
+  updateCalories();
+  updateAvoidTally();
+  updateMetrics();
+  buildCalChart();
+  buildWeek();
+}
+
+init();
+</script>
+</body>
+</html>
